@@ -1,0 +1,253 @@
+<?php
+App::uses('AppController', 'Controller');
+/**
+ * Questions Controller
+ *
+ * @property Question $Question
+ */
+class QuestionsController extends AppController {
+
+
+	/**
+   * method Question before any action.
+   *
+   * return void
+   */
+  public function beforeFilter() {
+
+  	 parent::beforeFilter();
+
+    $this->Auth->allow(array('index', 'add', 'view', 'search'));
+
+    if ($this->Session->read('Auth.User.role') != 'admin') {
+       if (in_array($this->action, array('admin_index', 'admin_approve', 'admin_delete'))) {
+       	    $this->redirect(array('action' => 'index', 'admin' => false));
+       }
+    }
+
+    // Question to the function to allow actions to non logged in users.
+    //$this->allowUser();
+
+  
+  }//end beforeFilter()
+
+/**
+ * index method
+ *
+ * @return void
+ */
+	public function index() {
+		$this->Question->recursive = 0;
+		$this->paginate = array(
+			'conditions' => array('is_active' => 1),
+			'limit' => 20, 
+			'order' => 'Question.id desc', 
+			'contain' => array('Answer' => array(
+				'conditions' => array('Answer.is_active' => 1),
+				'order' => 'Answer.like desc'
+				)
+			)
+		);
+		//debug($this->paginate());
+		$this->set('questions', $this->paginate());
+	}
+
+/**
+ * view method
+ *
+ * @throws NotFoundException
+ * @param string $id
+ * @return void
+ */
+	public function view($slug = null) {
+		$slugById = $this->Question->field('slug', array('id' => $slug));
+    if ($slugById !== false) {
+      $this->redirect(array('action' => 'view', $slugById), 301);
+    }
+    $category = $this->Question->findBySlug($slug);
+
+    $categoryId = $category['Question']['id'];
+
+    $id = $categoryId;
+
+
+
+		if (!$this->Question->exists($id)) {
+			throw new NotFoundException(__('Invalid question'));
+		}
+		$options = array(
+			'conditions' => array('Question.' . $this->Question->primaryKey => $id),
+			'contain' => array('Answer' => array('conditions' => array('is_active' => 1)))
+			);
+		$this->set('question', $this->Question->find('first', $options));
+	}
+
+/**
+ * add method
+ *
+ * @return void
+ */
+	public function add() {
+		if ($this->request->is('post')) {
+			$this->Question->create();
+			if ($this->Question->save($this->request->data)) {
+				$this->Session->setFlash(__('The question has been saved awaiting for approval'));
+				$this->redirect(array('action' => 'index'));
+			} else {
+				$this->Session->setFlash(__('The question could not be saved. Please, try again.'));
+			}
+		}
+	}
+
+/**
+ * edit method
+ *
+ * @throws NotFoundException
+ * @param string $id
+ * @return void
+ */
+	public function edit($id = null) {
+		if (!$this->Question->exists($id)) {
+			throw new NotFoundException(__('Invalid question'));
+		}
+		if ($this->request->is('post') || $this->request->is('put')) {
+			if ($this->Question->save($this->request->data)) {
+				$this->Session->setFlash(__('The question has been saved'));
+				$this->redirect(array('action' => 'index'));
+			} else {
+				$this->Session->setFlash(__('The question could not be saved. Please, try again.'));
+			}
+		} else {
+			$options = array('conditions' => array('Question.' . $this->Question->primaryKey => $id));
+			$this->request->data = $this->Question->find('first', $options);
+		}
+	}
+
+/**
+ * delete method
+ *
+ * @throws NotFoundException
+ * @throws MethodNotAllowedException
+ * @param string $id
+ * @return void
+ */
+	public function admin_delete($id = null) {
+		$this->Question->id = $id;
+		if (!$this->Question->exists()) {
+			throw new NotFoundException(__('Invalid question'));
+		}
+		$this->request->onlyAllow('post', 'delete');
+		if ($this->Question->delete()) {
+			$this->Session->setFlash(__('Question deleted'));
+			$this->redirect(array('action' => 'index'));
+		}
+		$this->Session->setFlash(__('Question was not deleted'));
+		$this->redirect(array('action' => 'index'));
+	}
+
+	/**
+ * index method
+ *
+ * @return void
+ */
+	public function admin_index() {
+		$this->Question->recursive = 0;
+			$this->paginate = array(
+			'conditions' => array('is_active' => 0),
+			'limit' => 10, 
+			'order' => 'id desc', 
+			'contain' => 'Answer'
+		);
+		//debug($this->paginate());
+		$this->set('questions', $this->paginate());
+	}
+
+
+/**
+ * edit method
+ *
+ * @throws NotFoundException
+ * @param string $id
+ * @return void
+ */
+	public function admin_approve($id = null) {
+		if (!$this->Question->exists($id)) {
+			throw new NotFoundException(__('Invalid question'));
+		}
+		
+		    $this->Question->id = $id;
+		    $data['is_active'] = 1;
+			if ($this->Question->save($data)) {
+				$this->Session->setFlash(__('The question has been saved'));
+				$this->redirect(array('action' => 'index'));
+			} else {
+				$this->Session->setFlash(__('The question could not be saved. Please, try again.'));
+			}
+	
+	}
+
+
+	/**
+   * Method used to search prediction or pundit with matching search
+   * 
+   * @return void
+   */ 
+  function search() {
+   
+    if (isset($this->request->data['Question']['search'])) {    
+   
+      $this->Session->write('findRaw', $this->request->data['Question']['search']);
+    }
+    
+    $search = $this->Session->read('findRaw');
+    $findRaw = !empty($search) ? $search : null;
+
+    //$userId = ($this->Auth->user('id') ? $this->Auth->user('id') : 0); 
+
+    if (!empty($findRaw)) {
+  
+      $option = array(  
+        'conditions' => array(' Question.title LIKE '."'%".$findRaw."%'"),      
+        'contain' => array(                 
+        ) 
+      );          
+      $rawData = $this->Question->find('all', $option);   
+      $totalQuestionFound = count($rawData);
+     // debug($userData);
+      $this->set(compact('rawData', 'totalQuestionFound')); 
+
+      $this->paginate = array(
+        'conditions' => array(
+          'Question.title LIKE' => "%$findRaw%",
+          'Question.is_active' => 1        
+        ),          
+        'limit' => 20, 
+      );
+    
+        
+      $this->set('questions', $this->paginate()); 
+    }
+    $this->set(compact('findRaw'));
+   
+  }//end search()  
+
+
+    /**
+   * Method to create slug
+   * 
+   * @return void
+   */
+  function admin_slug() {
+    set_time_limit(0);
+    $this->autoRender = false;
+    $calls = $this->Question->find('all', array('fields' => array('id', 'title')));
+    foreach ($calls as $call) {    
+      $this->Question->id = $call['Question']['id'];
+      $this->Question->save($call);
+    }
+    print("DONE");
+
+  }//end admin_slug
+
+
+}

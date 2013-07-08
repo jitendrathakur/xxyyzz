@@ -1,0 +1,37 @@
+body {
+    background: url("../img/8.png") repeat scroll 0 0 transparent;
+}
+a {
+    color: #0088CC;
+}
+a:hover {
+    color: #005580;
+}
+.intro-slogan {
+    font-family: "squada-one",serif;
+    font-weight: normal;
+}
+.main-wrap .section h3 {
+    font-family: "bebas-neue",serif;
+    font-weight: normal;
+    letter-spacing: 2px;
+}
+.css3-gradient {
+    background: -moz-linear-gradient(center top , #CC2A41 0%, #B52634 100%) repeat scroll 0 0 transparent;
+}
+.intro-slogan:after {
+    border-top: 30px solid #7C1A2F;
+}
+.css3-gradient-2 {
+    background: -moz-linear-gradient(center top , #4C1B49 0%, #351330 100%) repeat scroll 0 0 transparent;
+}
+.main-wrap .section h3:after {
+    border-top: 15px solid #160816;
+}
+.intro-slogan:after {
+    border-top: 10px solid #7C1A2F;
+}
+.main-wrap .section h3:after {
+    border-top: 10px solid #160816;
+}
+
